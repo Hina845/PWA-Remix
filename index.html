@@ -4,10 +4,17 @@
   <meta charset="utf-8" />
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#000000">
-  <script>
-    location.href = "https://remix.ethereum.org/"
-  </script>
 </head>
-<body></body>
-</html>
+<body>
+  <p>Launching app…</p>
 
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js")
+    }
+    setTimeout(() => {
+      location.href = "https://remix.ethereum.org/"
+    }, 1200)
+  </script>
+</body>
+</html>
