@@ -1,5 +1,5 @@
 {
-  "name": "Remix - Ethereum IDEM",
+  "name": "Remix - Ethereum IDE",
   "short_name": "Remix",
   "start_url": "/",
   "display": "standalone",
@@ -13,3 +13,4 @@
     }
   ]
 }
+
