@@ -2,23 +2,133 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Remix PWA Launcher</title>
-
+  <title>PWA Launcher</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#000000">
 </head>
 
-<body>
-  <button id="open">Launch Remix</button>
-
+<body style="display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 40px; padding-left: 120px; padding-right: 120px;">
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+    <div style = "width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 64px; padding-left: 128px; padding-right: 128px;">
+      <input id = "url" placeholder="Import an URL..." style="width: 600px; height: 40px; font-size: 16px; border-radius: 16px; padding-left: 20px; outline: none; border: 1px solid #ccc;" onfocus="this.style.boxShadow='none'; this.style.borderColor='#ccc';" onblur="this.style.boxShadow='none'; this.style.borderColor='#ccc';" />
+      <button id="open" style="width: fit-content; height: 40px; font-size: 16px; border-radius: 16px; border: none; cursor: pointer; padding-left: 20px; padding-right: 20px;">Go</button>
+      <button id="save-shortcut" style="width: fit-content; height: 40px; font-size: 16px; border-radius: 16px; border: none; cursor: pointer; padding-left: 20px; padding-right: 20px;">Save URL Shortcut</button>
+    </div>
+    <div id="error-message" style="color: red; font-size: 14px; height: 20px; padding-left: 128px;"></div>
+  </div>
+  <div id= "shortcut-container" style="width: 100%; height: 60%; overflow-y: auto; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: center; padding: 20px; border-radius: 16px;"></div>
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js")
-    }
-
+    } 
     document.getElementById("open").onclick = () => {
-      window.location.href = "https://remix.ethereum.org/"
+      const url = document.getElementById("url").value.trim();
+      const validUrl = validateUrl(url);
+      if (validUrl) {
+        window.location.href = validUrl;
+      }
     }
+    function showError(message) {
+      const errorDiv = document.getElementById('error-message');
+      errorDiv.textContent = message;
+      setTimeout(() => {
+        errorDiv.textContent = '';
+      }, 3000);
+    }
+    function validateUrl(url) {
+      if (!url) {
+        showError('Please enter a URL');
+        return null;
+      }
+      let fullUrl = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        fullUrl = 'https://' + url;
+      }
+      try {
+        new URL(fullUrl);
+        return fullUrl;
+      } catch (e) {
+        showError('Invalid URL. Please enter a valid URL.');
+        return null;
+      }
+    }
+    function getFaviconUrl(url) {
+      try {
+        const urlObj = new URL(url);
+        return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
+      } catch (e) {
+        console.error('Invalid URL:', e);
+        return null;
+      }
+    }
+    function saveShortcut(url, faviconUrl) {
+      const shortcuts = JSON.parse(localStorage.getItem('shortcuts') || '[]');
+      const existingIndex = shortcuts.findIndex(s => s.url === url);
+      if (existingIndex !== -1) {
+        shortcuts[existingIndex] = { url, favicon: faviconUrl };
+      } else {
+        shortcuts.push({ url, favicon: faviconUrl });
+      }
+      
+      localStorage.setItem('shortcuts', JSON.stringify(shortcuts));
+      loadShortcuts();
+    }
+    function loadShortcuts() {
+      const shortcuts = JSON.parse(localStorage.getItem('shortcuts') || '[]');
+      const container = document.getElementById('shortcut-container');
+      container.innerHTML = '';
+      
+      shortcuts.forEach((shortcut, index) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'display: flex; flex-direction: column; align-items: center; justify-content: center; width: 120px; height: 120px; background: white; border: 1px solid #ddd; cursor: pointer; margin: 10px; position: relative;';
+        const deleteBtn = document.createElement('button');
+        deleteBtn.innerHTML = '×';
+        deleteBtn.style.cssText = 'position: absolute; top: 5px; right: 5px; width: 20px; height: 20px; border: 1px solid #999; background: white; color: #999; cursor: pointer; font-size: 16px; line-height: 1; padding: 0;';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteShortcut(index);
+        };
+        const img = document.createElement('img');
+        img.src = shortcut.favicon;
+        img.style.cssText = 'width: 48px; height: 48px; margin-bottom: 8px;';
+        img.onerror = () => {
+          img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><text y="32" font-size="32">🌐</text></svg>';
+        };
+        const text = document.createElement('div');
+        text.textContent = new URL(shortcut.url).hostname;
+        text.style.cssText = 'font-size: 12px; color: #333; text-align: center; word-break: break-word; padding: 0 5px; max-width: 100%;';
+        
+        card.appendChild(deleteBtn);
+        card.appendChild(img);
+        card.appendChild(text);
+        
+        card.onclick = () => {
+          window.location.href = shortcut.url;
+        };
+        
+        container.appendChild(card);
+      });
+    }
+    function deleteShortcut(index) {
+      const shortcuts = JSON.parse(localStorage.getItem('shortcuts') || '[]');
+      shortcuts.splice(index, 1);
+      localStorage.setItem('shortcuts', JSON.stringify(shortcuts));
+      loadShortcuts();
+    }
+    document.getElementById('save-shortcut').onclick = () => {
+      const urlInput = document.getElementById('url');
+      const url = urlInput.value.trim();
+      const validUrl = validateUrl(url);
+      
+      if (validUrl) {
+        const faviconUrl = getFaviconUrl(validUrl);
+        saveShortcut(validUrl, faviconUrl);
+        urlInput.value = '';
+        document.getElementById('error-message').textContent = '';
+      }
+    };
+    window.addEventListener('DOMContentLoaded', loadShortcuts);
+    loadShortcuts();
   </script>
 </body>
 </html>
